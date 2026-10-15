@@ -10,7 +10,7 @@
   let generation = 0;
 
   const notify = () => window.dispatchEvent(new Event('xpandmax:translation'));
-  const supported = () => provider === 'custom' || (typeof Translator !== 'undefined' && typeof Translator.create === 'function'
+  const supported = () => provider !== 'local' || (typeof Translator !== 'undefined' && typeof Translator.create === 'function'
     && typeof LanguageDetector !== 'undefined' && typeof LanguageDetector.create === 'function');
   if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
     let refresh = 0;
@@ -19,7 +19,7 @@
       try {
         const config = await chrome.runtime.sendMessage({ type: 'translation-status' });
         if (id !== refresh) return;
-        provider = config?.provider === 'custom' ? 'custom' : 'local';
+        provider = ['custom', 'google', 'gemini', 'anthropic'].includes(config?.provider) ? config.provider : 'local';
         generation++;
         running = 0;
         entries.clear();
@@ -92,7 +92,7 @@
 
   async function translate(entry) {
     const currentGeneration = generation;
-    const online = provider === 'custom';
+    const online = provider !== 'local';
     entry.state = 'translating';
     try {
       if (!online && !entry.language) {

@@ -99,3 +99,77 @@ test('settings reject unsafe URLs and test only uses a fixed synthetic sentence'
   assert.equal((await send({ type: 'translation-test', text: 'private data' }, popup)).text, '开发工具');
   assert.equal(JSON.parse(requests[0][1].body).messages[1].content, 'I build useful tools.');
 });
+
+test('Google uses a fixed no-key endpoint, joins segments, and requires permission', async () => {
+  const google = { provider: 'google', endpoint: 'https://evil.example', apiKey: 'must-not-send' };
+  const { send, requests } = setup({ saved: google, fetcher: () => new Response(JSON.stringify({ sentences: [{ trans: '开发' }, { trans: '工具' }] })) });
+  assert.equal((await send({ type: 'translate-bio', text: 'Build & share ⟦XP0⟧' })).text, '开发工具');
+  const url = new URL(requests[0][0]);
+  assert.equal(url.origin, 'https://translate.googleapis.com');
+  assert.equal(url.searchParams.get('q'), 'Build & share ⟦XP0⟧');
+  assert.equal(url.searchParams.get('tl'), 'zh-CN');
+  assert.equal(requests[0][1].method, 'GET');
+  assert.equal(requests[0][1].headers, undefined);
+  assert.equal((await send({ type: 'translation-status' })).provider, 'google');
+  assert.equal((await send({ type: 'translation-save', config: google }, popup)).saved, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(await send({ type: 'translation-config' }, popup))), { provider: 'google' });
+  const denied = setup({ saved: google, allowed: false });
+  assert.ok((await denied.send({ type: 'translate-bio', text: 'Build' })).error);
+  assert.equal(denied.requests.length, 0);
+});
+
+test('Google rejects missing or malformed translation segments', async () => {
+  for (const data of [{}, { sentences: [] }, { sentences: [{ trans: 3 }] }, { sentences: [{ trans: 'ok' }, {}] }]) {
+    const { send } = setup({ saved: { provider: 'google' }, fetcher: () => new Response(JSON.stringify(data)) });
+    assert.ok((await send({ type: 'translate-bio', text: 'Build' })).error);
+  }
+});
+
+test('Gemini sends native contents and header key, preserving model path and hiding thoughts', async () => {
+  const saved = { provider: 'gemini', endpoint: 'https://api.example/v1beta', model: 'gemini-test', apiKey: 'synthetic-key' };
+  const { send, requests } = setup({ saved, fetcher: () => new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'hidden reasoning', thought: true }, { text: '开发' }, { text: '工具' }] } }] })) });
+  assert.equal((await send({ type: 'translate-bio', text: 'Building tools' })).text, '开发工具');
+  assert.equal(requests[0][0], 'https://api.example/v1beta/models/gemini-test:generateContent');
+  assert.equal(requests[0][1].headers['x-goog-api-key'], 'synthetic-key');
+  assert.equal(requests[0][1].headers.Authorization, undefined);
+  assert.equal(JSON.parse(requests[0][1].body).contents[0].parts[0].text, 'Building tools');
+  assert.equal((await send({ type: 'translation-status' })).provider, 'gemini');
+  assert.equal((await send({ type: 'translation-save', config: saved }, popup)).saved, true);
+});
+
+test('Gemini rejects blocked, truncated, empty or malformed results and denied permission', async () => {
+  const saved = { provider: 'gemini', endpoint: 'https://api.example/v1beta', model: 'gemini-test', apiKey: '' };
+  for (const data of [{}, { candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: 'partial' }] } }] }, { candidates: [{ finishReason: 'STOP', content: { parts: [{ thought: true, text: 'reasoning' }] } }] }]) {
+    const { send, requests } = setup({ saved, fetcher: () => new Response(JSON.stringify(data)) });
+    assert.ok((await send({ type: 'translate-bio', text: 'Build' })).error);
+    assert.equal(requests.length, 1);
+  }
+  const denied = setup({ saved, allowed: false });
+  assert.ok((await denied.send({ type: 'translate-bio', text: 'Build' })).error);
+  assert.equal(denied.requests.length, 0);
+});
+
+test('Anthropic uses Messages headers and text blocks, not thinking blocks', async () => {
+  const saved = { provider: 'anthropic', endpoint: 'https://api.example', model: 'claude-test', apiKey: 'synthetic-key' };
+  const { send, requests } = setup({ saved, fetcher: () => new Response(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: 'private' }, { type: 'text', text: '译文' }] })) });
+  assert.equal((await send({ type: 'translate-bio', text: 'Build' })).text, '译文');
+  assert.equal(requests[0][0], 'https://api.example/v1/messages');
+  assert.equal(requests[0][1].headers['x-api-key'], 'synthetic-key');
+  assert.equal(requests[0][1].headers['anthropic-version'], '2023-06-01');
+  assert.equal(JSON.parse(requests[0][1].body).messages[0].content, 'Build');
+});
+
+test('base addresses and full endpoints normalize without duplicate paths', async () => {
+  for (const [provider, endpoint, expected] of [
+    ['custom','https://api.example','https://api.example/v1/chat/completions'],
+    ['custom','https://api.example/v1/','https://api.example/v1/chat/completions'],
+    ['custom','https://api.example/proxy/v2/chat/completions','https://api.example/proxy/v2/chat/completions'],
+    ['anthropic','https://api.example/v1/messages','https://api.example/v1/messages'],
+    ['gemini','https://api.example','https://api.example/v1beta/models/test:generateContent'],
+    ['gemini','https://api.example/v1beta/models/old:generateContent','https://api.example/v1beta/models/test:generateContent']
+  ]) {
+    const { send, requests } = setup({ saved: { provider, endpoint, model: 'test', apiKey: '' } });
+    await send({ type: 'translate-bio', text: 'Build' });
+    assert.equal(requests[0][0], expected);
+  }
+});

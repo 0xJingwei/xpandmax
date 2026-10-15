@@ -12,7 +12,7 @@ Features:
 
 Works across feeds, post details, replies, quote posts, search results, and account lists.
 
-Refresh X after installation to get started. No extra account needed. Profile data is processed in your browser and is not sent to the developer. Optional custom translation sends bio text to your chosen provider after you configure it and grant host access. API settings, including the key, stay in this browser without cloud sync.
+Refresh X after installation to get started. No extra account needed. Profile data is processed in your browser and is not sent to the developer. Optional Google or custom API translation sends bio text to your chosen provider after you configure it and grant host access. API settings, including the key, stay in this browser without cloud sync.
 
 Website: https://xpandmax.com
 

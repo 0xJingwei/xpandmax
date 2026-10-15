@@ -57,3 +57,36 @@ test('declining host permission does not save settings or send a test request', 
     assert.equal($('test').disabled, true);
   } finally { close(); }
 });
+
+test('Google needs no custom fields and requests only its fixed host', async () => {
+  const { w, $, calls, origins, close } = await setup();
+  try {
+    $('provider').value = 'google';
+    $('provider').dispatchEvent(new w.Event('change', { bubbles: true }));
+    assert.equal($('custom-fields').hidden, true);
+    assert.equal($('google-note').hidden, false);
+    $('translation-form').dispatchEvent(new w.Event('submit', { cancelable: true }));
+    await tick();
+    assert.equal(origins[0][0], 'https://translate.googleapis.com/*');
+    assert.deepEqual(JSON.parse(JSON.stringify(calls[1].config)), { provider: 'google' });
+    assert.equal($('test').disabled, false);
+    assert.equal($('api-key').value, '');
+  } finally { close(); }
+});
+
+for (const provider of ['gemini', 'anthropic']) test(`${provider} settings save generic host, model and key`, async () => {
+  const { w, $, calls, origins, close } = await setup();
+  try {
+    $('provider').value = provider;
+    $('provider').dispatchEvent(new w.Event('change', { bubbles: true }));
+    $('endpoint').value = 'https://api.example';
+    assert.equal($('custom-fields').hidden, false);
+    $('translation-form').dispatchEvent(new w.Event('submit', { cancelable: true }));
+    await tick();
+    assert.equal(calls[1].config.provider, provider);
+    assert.equal(calls[1].config.model, 'test-model');
+    assert.equal(calls[1].config.apiKey, 'synthetic-key');
+    assert.equal(origins[0][0], 'https://api.example/*');
+    assert.equal($('test').disabled, false);
+  } finally { close(); }
+});

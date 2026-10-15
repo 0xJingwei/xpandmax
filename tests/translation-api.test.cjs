@@ -3,13 +3,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { JSDOM } = require('jsdom');
 
-test('configured API translates without browser models and preserves handles', async () => {
+for (const provider of ['custom', 'google', 'gemini', 'anthropic']) test(`${provider} translates without browser models and preserves handles`, async () => {
   const dom = new JSDOM('', { url: 'https://x.com/', runScripts: 'outside-only' });
   const w = dom.window;
   const calls = [];
   w.chrome = {
     runtime: { sendMessage: async message => {
-      if (message.type === 'translation-status') return { provider: 'custom' };
+      if (message.type === 'translation-status') return { provider };
       calls.push(message);
       return { text: '为创作者开发工具 ⟦XP0⟧' };
     } },
