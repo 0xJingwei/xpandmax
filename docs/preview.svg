@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="360" viewBox="0 0 880 360">
+<rect width="880" height="360" rx="16" fill="#f5f8fa"/>
+<g font-family="system-ui, sans-serif">
+<text x="34" y="45" font-size="24" font-weight="700" fill="#0f1419">XpandMax · Follower Count</text>
+<text x="34" y="74" font-size="14" fill="#536471">Follower counts beside account names · No API key</text>
+<rect x="28" y="98" width="824" height="198" rx="12" fill="white" stroke="#e1e8ed"/>
+<circle cx="66" cy="139" r="22" fill="#deeffc"/><text x="58" y="146" font-size="20" fill="#096b9f">A</text>
+<text x="104" y="132" font-size="17" font-weight="700" fill="#0f1419">Demo Author</text>
+<rect x="233" y="113" width="86" height="25" rx="5" fill="#e8f5fd"/>
+<text x="243" y="131" font-size="13" font-weight="600" fill="#096b9f">粉丝 1.2万</text>
+<text x="330" y="132" font-size="14" fill="#536471">@demo_author · 2m</text>
+<text x="104" y="169" font-size="15" fill="#0f1419">A small extension that makes browsing a little easier.</text>
+<path d="M28 195H852" stroke="#eff3f4"/>
+<circle cx="66" cy="238" r="22" fill="#e8e5ff"/><text x="58" y="245" font-size="20" fill="#6855bc">B</text>
+<text x="104" y="232" font-size="17" font-weight="700" fill="#0f1419">Demo Builder</text>
+<rect x="233" y="213" width="77" height="25" rx="5" fill="#e8f5fd"/>
+<text x="243" y="231" font-size="13" font-weight="600" fill="#096b9f">粉丝 913</text>
+<text x="322" y="232" font-size="14" fill="#536471">@demo_builder · 5m</text>
+<text x="104" y="270" font-size="15" fill="#0f1419">Hover over a badge to see the exact number.</text>
+<text x="34" y="328" font-size="12" fill="#536471">Illustration with fictional accounts and sample counts. Not a screenshot of a real user.</text>
+</g></svg>

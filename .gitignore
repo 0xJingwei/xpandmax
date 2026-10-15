@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+.env*
+*.pem
+*.key
+*service-account*.json
+cws.json
+artifacts/
+dist/
+preview.html
+__pycache__/
+*.pyc
+
+.vercel/
+website/downloads/*.zip
+.vercel

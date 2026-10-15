@@ -1,0 +1,21 @@
+{
+  "name": "xpandmax",
+  "version": "0.9.4",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "package": "python3 scripts/package.py",
+    "package:store": "python3 scripts/package.py --store",
+    "store:configure": "node scripts/cws.mjs configure",
+    "store:status": "node scripts/cws.mjs status",
+    "store:submit": "node scripts/cws.mjs submit",
+    "build:site": "python3 scripts/build_site.py"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
+}

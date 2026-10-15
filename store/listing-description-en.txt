@@ -1,0 +1,18 @@
+XpandMax — Get to know people on X without opening their profiles.
+
+See follower counts and bios right below author names as you browse posts and replies. Find someone interesting? Follow them on the spot.
+
+Features:
+
+• Profiles at a glance: See follower counts and short bios. Click to expand the full bio and location.
+• Chinese translations: Translate bios into Chinese and switch back to the original text anytime. Requires a supported browser and initial language setup.
+• Quick follow: Follow authors directly from posts.
+• Hide notification counts: Hide the unread number on the notification icon. This is on by default and can be changed in settings.
+
+Works across feeds, post details, replies, quote posts, search results, and account lists.
+
+Refresh X after installation to get started. No extra account needed. Profile data is processed in your browser and is not sent to the developer or third parties.
+
+Website: https://xpandmax.com
+
+Independently developed. Not affiliated with X.

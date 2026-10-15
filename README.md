@@ -1,0 +1,82 @@
+# XpandMax
+
+**帮你在 X 上连接更大的世界。**
+
+[英文官网](https://xpandmax.com) · 在 X 上直接查看粉丝数和简短中文简介。
+
+**MIT 开源，欢迎贡献。** [源代码](https://github.com/yiren-ai/xpandmax) · [提交问题](https://github.com/yiren-ai/xpandmax/issues) · [贡献指南](CONTRIBUTING.md) · [Pull Requests](https://github.com/yiren-ai/xpandmax/pulls)
+
+在作者名下显示一行轻量注释：蓝色粉丝数和一小段中文简介，统一 12px、400 常规字重。点击展开完整简介、所在地和原文切换，同时最多展开一位作者。支持首页、回复、引用帖、搜索与账号列表。
+
+无需 API Key，无后台服务，无额外查询。数据来自当前页面已经收到的 X 响应。
+
+![使用虚构账号的效果示意](docs/preview.svg)
+
+## 安装到 Chrome
+
+1. 从 [官网安装页](https://xpandmax.com/install/) 下载 `xpandmax-版本号.zip` 并解压；也可以下载项目源代码。
+2. 在 Chrome 地址栏打开 `chrome://extensions`。
+3. 打开右上角「开发者模式」，点击「加载已解压的扩展程序」。
+4. 选择解压后的 `extension` 文件夹，里面应该能看到 `manifest.json`。
+5. 刷新已经打开的 X 页面，打开首页或任意账号的关注者列表即可。
+
+普通用户优先从 [Chrome Web Store](https://chromewebstore.google.com/detail/dckjdeemcnjccfbinnmncalmoajleboo) 安装，无需开发者模式。商店版本以商店页面为准，可能与仓库代码不同。上面的步骤用于手动安装源码版本。
+
+## 使用
+
+- 默认隐藏左侧「通知」图标上的未读数字。点击 Chrome 工具栏里的 XpandMax，关闭「隐藏通知未读数字」即可恢复，切换后立即生效。通知入口和通知内容保持可用，不会将通知标记为已读。
+- **沉浸式浏览**：点击 Chrome 工具栏里的 XpandMax，可独立选择「隐藏左侧导航」和「隐藏右侧栏」。左侧默认保留，开启隐藏后收起主页、通知等导航入口，并将主内容区居中；右侧默认整栏隐藏，包括搜索框、赛事、热门趋势、推荐关注、底部链接和版权信息，同时收回右栏占用的布局宽度。开关立即生效并在本机保存，可随时从插件恢复；正文和探索页的主要内容保持可用。
+
+- 支持信息流作者、帖子详情和回复作者、引用帖作者、搜索账号/帖子、个人主页标题，以及页面中的账号卡片。
+- 支持 `/<账号>/verified_followers`、`followers`、`following`、`followers_you_follow`。
+- 帖子作者下方默认只有一行：蓝色粉丝数 + 简短简介，无卡片底色或边框。长简介省略，点击整行展开；再点或按 Esc 收起。
+- 未关注的帖子作者显示「关注」，点击后直接执行 X 原生关注，收到成功结果后显示「已关注」。已关注、已请求关注、被屏蔽、自己或状态未知的账号不显示关注按钮。引用帖仍只显示资料；按钮不会触发取消关注。
+- 粉丝数与简介字号、字重一致，只用颜色区分。不显示「关注你」「互关」等关系标签。
+- 所在地只在展开时显示。打开另一位作者会自动收起上一位。账号列表保留轻量粉丝数标签。空数据不猜测；简介短链接使用 X 已返回的网址显示为域名。所在地是账号自己填写的资料。
+- 在支持的桌面版 Chrome 中，外文简介自动翻译成中文，点击「查看原文」可切换。首次使用时按提示点击「启用中文翻译」下载浏览器语言包，此后同一语言包就绪时自动翻译。简介只在本机处理；浏览器不支持或翻译失败时保留原文。中文与中英混合简介保留原文。
+- 滚动加载、站内切换列表时自动更新，同时处理右侧推荐账号。
+- 不给正文中每一个 @提及、只有头像的通知或非标准账号结构强行加标签；只有识别出明确账号且 X 返回了粉丝字段才能展示数字。
+- 「粉丝 —」表示没有拿到数据，**不等于 0**。安装后先刷新页面。
+- 数字来自 X 页面返回时的数据，不是持续实时推送。超过 30 分钟的页面缓存不再显示为有效数字；刷新可重新读取。
+
+## 数据与权限
+
+插件只在 `x.com` 和 `twitter.com` 运行，在本机处理页面已经返回的用户名、粉丝数、简介、自填所在地和关注按钮所需状态。不发起额外账号查询，没有服务器、统计上报或账号数据持久化存储。Chrome 本地翻译可能首次下载语言包，翻译文本不发到外部翻译服务。仅使用 `storage` 权限在浏览器本地记住通知数字和沉浸式浏览开关，不保存账号资料。没有 Cookie、历史记录或标签页权限。浏览器会提示它可以读取和更改 X 页面，这是添加标签所需的站点访问范围。
+
+详细说明见 [PRIVACY.md](PRIVACY.md)。演示图使用虚构账号；测试只使用合成数据。
+
+适配实测的新字段 `core.screen_name`、`relationship_counts.followers`、`profile_bio.description`、`location.location`，同时兼容相应旧版 `legacy` 字段。每个字段分别计算 30 分钟有效期，资料缺失不会覆盖已有的新鲜资料，也不会延长其他字段的有效期。X 更改页面结构或接口字段后可能需要更新插件。
+
+## 开发与验证
+
+```sh
+npm ci
+npm test
+npm run package
+# 商店上传包（manifest.json 位于 ZIP 根目录）
+npm run package:store
+```
+
+运行时无第三方依赖；jsdom 仅用于本地测试。自动化用例覆盖一键关注的目标校验、防重复提交、成功与失败状态、伪造点击拦截，以及账号映射、0 粉丝、精确数值、动态列表、DOM 复用、原帖/引用帖区分、站内路由、非法消息、fetch / XHR、晚启动重放和安装清单。
+
+开发需要 Node.js 22+，打包需要 Python 3.9+。安装包按白名单生成，包含插件运行文件与图标、安装说明、虚构账号示意图、许可证和隐私说明；SHA-256 校验值写入 `dist/SHA256SUMS.txt`。商店上传包仅包含运行文件、图标、许可证和隐私说明，校验值写入 `dist/STORE-SHA256SUMS.txt`。发布检查使用 `python3 -m unittest discover -s tests -p '*_test.py'` 验证两种安装包的内容和可复现性。
+
+`extension/` 为实际插件，`tests/` 为本地自动化测试。实际 Chrome 安装需要用户在扩展管理页完成。
+
+## 已知限制
+
+目前适配桌面版 Chrome 111 及以上版本。插件依赖 X 返回的数据与页面结构，无法保证所有实验界面都兼容。该项目与 X 官方没有隶属关系。
+
+实现依据：Chrome 官方 [content scripts 文档](https://developer.chrome.com/docs/extensions/reference/manifest/content-scripts)，使用 Manifest V3 的 `document_start`、`MAIN` 和隔离执行环境。
+
+## 反馈与许可证
+
+欢迎通过 [Issues](https://github.com/yiren-ai/xpandmax/issues) 提交复现步骤。请不要上传 Cookie、令牌、私信或其他私人数据。
+
+欢迎 Fork 后提交 Pull Request，修复问题、改进文档或补充测试。开发环境、验证步骤和 PR 要求见 [CONTRIBUTING.md](CONTRIBUTING.md)。新增功能请先开 Issue 讨论，优先保持插件简单、轻量。
+
+本项目采用 [MIT License](LICENSE)。允许使用、修改和分发，请保留许可证与版权声明。
+
+## 英文官网
+
+`website/` 是独立的静态站点，部署到 Vercel 的 `xpandmax` 项目。执行 `npm run build:site` 会重新生成最新下载包。用 `python3 -m http.server 4173 --directory website` 本地预览。
