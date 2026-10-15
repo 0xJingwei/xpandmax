@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>简介翻译 · XpandMax</title>
+  <link rel="stylesheet" href="translation-options.css">
+  <script src="translation-options.js" defer></script>
+</head>
+<body>
+  <main>
+    <p class="brand">XpandMax</p>
+    <h1>简介翻译</h1>
+    <p>浏览器的本地翻译能力可能不同。如果无法启用，可以接入自己的翻译 API。</p>
+    <form id="translation-form">
+      <fieldset id="settings" disabled>
+        <label for="provider">翻译方式</label>
+        <select id="provider">
+          <option value="local">浏览器本地翻译（默认）</option>
+          <option value="custom">自定义 API</option>
+        </select>
+        <p id="local-note">简介在本机处理，需要浏览器支持语言检测和中文翻译模型。保存此选项会清除已存的 API 配置。</p>
+        <div id="custom-fields" hidden>
+          <p class="notice">开启后，待翻译的简介会发送给你填写的服务商。服务商可能收费，请先了解其价格和隐私政策。配置仅保存在此浏览器，不会云端同步。</p>
+          <label for="endpoint">接口地址</label>
+          <input id="endpoint" type="url" placeholder="https://api.example.com/v1/chat/completions" autocomplete="off" spellcheck="false">
+          <small>填写完整的 HTTPS Chat Completions 地址，包含路径。并非所有 API 都兼容此协议。</small>
+          <label for="api-key">API Key</label>
+          <input id="api-key" type="password" autocomplete="off" spellcheck="false" maxlength="4096">
+          <small>服务商不需要 Key 时可留空；请勿使用 X 的登录令牌。</small>
+          <label for="model">模型名称</label>
+          <input id="model" type="text" placeholder="服务商提供的模型 ID" autocomplete="off" spellcheck="false" maxlength="128">
+        </div>
+        <div class="actions">
+          <button id="save" type="submit">保存设置</button>
+          <button id="test" type="button" disabled>测试已保存的接口</button>
+        </div>
+      </fieldset>
+    </form>
+    <p id="test-note" hidden>测试会发送一句虚构示例“I build useful tools.”，可能产生少量费用。</p>
+    <p id="status" role="status" aria-live="polite">正在读取设置…</p>
+  </main>
+</body>
+</html>
