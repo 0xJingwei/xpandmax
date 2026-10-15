@@ -12,10 +12,18 @@
     timeout: '接口请求超时，请检查服务商状态',
     response: '接口返回格式异常，或译文为空、过长',
     network: '连接失败，请检查接口地址、网络及服务商状态',
-    busy: '翻译请求较多，请稍后重试'
+    busy: '翻译请求较多，请稍后重试',
+    cancelled: '翻译设置已更改，请使用新设置重试'
   };
   const fail = code => { throw new Error(code); };
-  let running = 0;
+  const active = new Set();
+  let generation = 0;
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.translationConfig) return;
+    generation++;
+    for (const controller of active) controller.abort();
+    active.clear();
+  });
 
   function validate(value) {
     if (value?.provider === 'local') return { provider: 'local' };
@@ -51,14 +59,16 @@
 
   async function translate(text) {
     if (typeof text !== 'string' || !text.trim() || text.length > 6000) fail('response');
-    if (running >= 2) fail('busy');
-    running++;
+    if (active.size >= 2) fail('busy');
+    const requestGeneration = generation;
     const controller = new AbortController();
+    active.add(controller);
     const timer = setTimeout(() => controller.abort(), 20000);
     try {
       const config = validate(await getConfig());
       if (!online(config.provider)) fail('disabled');
       await permission(config);
+      if (requestGeneration !== generation) fail('cancelled');
       let endpoint = config.endpoint;
       if (config.provider === 'google') {
         const url = new URL(googleEndpoint);
@@ -107,9 +117,8 @@
       try { data = JSON.parse(body); } catch { fail('response'); }
       let result;
       if (config.provider === 'google') {
-        if (!Array.isArray(data?.sentences) || !data.sentences.length
-          || data.sentences.some(sentence => typeof sentence?.trans !== 'string')) fail('response');
-        result = data.sentences.map(sentence => sentence.trans).join('');
+        if (!Array.isArray(data?.sentences)) fail('response');
+        result = data.sentences.filter(sentence => typeof sentence?.trans === 'string').map(sentence => sentence.trans).join('');
       } else if (config.provider === 'gemini') {
         const candidate = data?.candidates?.[0];
         const parts = candidate?.content?.parts;
@@ -122,13 +131,24 @@
         const blocks = data.content.filter(block => block?.type === 'text');
         if (!blocks.length || blocks.some(block => typeof block.text !== 'string')) fail('response');
         result = blocks.map(block => block.text).join('');
-      } else result = data?.choices?.[0]?.message?.content;
+      } else {
+        const choice = data?.choices?.[0];
+        if (choice?.finish_reason !== 'stop') fail('response');
+        const content = choice?.message?.content;
+        if (Array.isArray(content)) {
+          const parts = content.filter(part => part?.type === 'text');
+          if (!parts.length || parts.some(part => typeof part.text !== 'string')) fail('response');
+          result = parts.map(part => part.text).join('');
+        } else result = content;
+      }
+      if (requestGeneration !== generation) fail('cancelled');
       if (typeof result !== 'string' || !result.trim() || result.length > 6000) fail('response');
       return { text: result.trim() };
     } catch (error) {
+      if (requestGeneration !== generation) fail('cancelled');
       if (controller.signal.aborted) fail('timeout');
       throw error;
-    } finally { clearTimeout(timer); running--; }
+    } finally { clearTimeout(timer); active.delete(controller); }
   }
 
   chrome.runtime.onMessage.addListener((message, sender, reply) => {

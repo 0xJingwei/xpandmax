@@ -7,22 +7,22 @@ const config = { provider: 'custom', endpoint: 'https://api.example/v1/chat/comp
 const popup = { id: 'test', url: 'chrome-extension://test/translation-options.html' };
 const page = { id: 'test', url: 'https://x.com/home', tab: { id: 1 }, frameId: 0 };
 function setup({ saved = config, allowed = true, fetcher, schedule = setTimeout } = {}) {
-  let listener;
+  let listener, storageChanged;
   let state = saved;
   const requests = [];
   const chrome = {
     runtime: { id: 'test', getURL: path => `chrome-extension://test/${path}`, onMessage: { addListener: fn => { listener = fn; } } },
     storage: { local: {
       get: async () => ({ translationConfig: state }),
-      set: async values => { state = values.translationConfig; }
-    } },
+      set: async values => { const oldValue = state; state = values.translationConfig; storageChanged?.({ translationConfig: { oldValue, newValue: state } }, 'local'); }
+    }, onChanged: { addListener: fn => { storageChanged = fn; } } },
     permissions: { contains: async () => allowed }
   };
   vm.runInNewContext(fs.readFileSync('extension/translation-background.js', 'utf8'), {
     chrome, URL, AbortController, TextDecoder, setTimeout: schedule, clearTimeout,
     fetch: async (...args) => {
       requests.push(args);
-      return fetcher ? fetcher(...args) : new Response(JSON.stringify({ choices: [{ message: { content: '开发工具' } }] }));
+      return fetcher ? fetcher(...args) : new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '开发工具' } }] }));
     }
   });
   const send = (message, sender = page) => new Promise(resolve => {
@@ -86,7 +86,7 @@ test('background bounds concurrent requests and rejects oversized bios', async (
   assert.match(third.error, /较多/);
   assert.ok((await send({ type: 'translate-bio', text: 'x'.repeat(6001) })).error);
   assert.equal(requests.length, 2);
-  pending.forEach(resolve => resolve(new Response(JSON.stringify({ choices: [{ message: { content: '译文' } }] }))));
+  pending.forEach(resolve => resolve(new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '译文' } }] }))));
   assert.equal((await first).text, '译文');
   assert.equal((await second).text, '译文');
 });
@@ -119,7 +119,7 @@ test('Google uses a fixed no-key endpoint, joins segments, and requires permissi
 });
 
 test('Google rejects missing or malformed translation segments', async () => {
-  for (const data of [{}, { sentences: [] }, { sentences: [{ trans: 3 }] }, { sentences: [{ trans: 'ok' }, {}] }]) {
+  for (const data of [{}, { sentences: [] }, { sentences: [{ trans: 3 }] }]) {
     const { send } = setup({ saved: { provider: 'google' }, fetcher: () => new Response(JSON.stringify(data)) });
     assert.ok((await send({ type: 'translate-bio', text: 'Build' })).error);
   }
@@ -172,4 +172,41 @@ test('base addresses and full endpoints normalize without duplicate paths', asyn
     await send({ type: 'translate-bio', text: 'Build' });
     assert.equal(requests[0][0], expected);
   }
+});
+
+
+test('Google ignores metadata-only sentences but still requires translated text', async () => {
+  const { send } = setup({ saved: { provider: 'google' }, fetcher: () => new Response(JSON.stringify({ sentences: [{ trans: '译文' }, { src_translit: 'metadata' }, null] })) });
+  assert.equal((await send({ type: 'translate-bio', text: 'Build' })).text, '译文');
+});
+
+test('Chat Completions accepts text parts and rejects truncated or non-final output', async () => {
+  for (const content of ['译文', [{ type: 'text', text: '译' }, { type: 'text', text: '文' }]]) {
+    const { send } = setup({ fetcher: () => new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content, reasoning_content: 'hidden' } }] })) });
+    assert.equal((await send({ type: 'translate-bio', text: 'Build' })).text, '译文');
+  }
+  for (const finish_reason of ['length', 'content_filter', 'tool_calls', null, undefined]) {
+    const { send } = setup({ fetcher: () => new Response(JSON.stringify({ choices: [{ finish_reason, message: { content: 'partial' } }] })) });
+    assert.ok((await send({ type: 'translate-bio', text: 'Build' })).error);
+  }
+});
+
+test('saving config aborts old requests and immediately frees both slots without stale results', async () => {
+  const pending = [];
+  const { send, requests } = setup({ fetcher: (_url, options) => new Promise(resolve => pending.push({ resolve, signal: options.signal })) });
+  const old1 = send({ type: 'translate-bio', text: 'Old first' });
+  const old2 = send({ type: 'translate-bio', text: 'Old second' });
+  await new Promise(resolve => setImmediate(resolve));
+  await send({ type: 'translation-save', config: { ...config, model: 'new' } }, popup);
+  assert.ok(pending[0].signal.aborted && pending[1].signal.aborted);
+  const fresh1 = send({ type: 'translate-bio', text: 'New first' });
+  const fresh2 = send({ type: 'translate-bio', text: 'New second' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requests.length, 4);
+  const response = () => new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '译文' } }] }));
+  pending[0].resolve(response()); pending[1].resolve(response());
+  assert.ok((await old1).error); assert.ok((await old2).error);
+  assert.match((await send({ type: 'translate-bio', text: 'Third new' })).error, /较多/);
+  pending[2].resolve(response()); pending[3].resolve(response());
+  assert.equal((await fresh1).text, '译文'); assert.equal((await fresh2).text, '译文');
 });
