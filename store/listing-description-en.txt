@@ -8,6 +8,7 @@ Features:
 • Chinese translations: Translate bios into Chinese and switch back to the original text anytime. Requires a supported browser and initial language setup.
 • Quick follow: Follow authors directly from posts.
 • Hide notification counts: Hide the unread number on the notification icon. This is on by default and can be changed in settings.
+• Immersive browsing: Independently hide the left navigation or right sidebar. These layout preferences and the notification-count preference are stored only on this device; account profiles and follow states are not persisted.
 
 Works across feeds, post details, replies, quote posts, search results, and account lists.
 
