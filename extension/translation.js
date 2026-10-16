@@ -7,25 +7,34 @@
   let needsActivation = false;
   let running = 0;
   let provider = 'local';
+  let loadingProvider = false;
+  let providerRevision;
+  let loadProvider;
   let generation = 0;
 
   const notify = () => window.dispatchEvent(new Event('xpandmax:translation'));
-  const supported = () => provider !== 'local' || (typeof Translator !== 'undefined' && typeof Translator.create === 'function'
-    && typeof LanguageDetector !== 'undefined' && typeof LanguageDetector.create === 'function');
+  const supported = () => !loadingProvider && (provider !== 'local' || (typeof Translator !== 'undefined' && typeof Translator.create === 'function'
+    && typeof LanguageDetector !== 'undefined' && typeof LanguageDetector.create === 'function'));
   if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
     let refresh = 0;
-    const loadProvider = async () => {
+    loadProvider = async () => {
       const id = ++refresh;
+      // Invalidate old work before awaiting status: cancelled replies can arrive first.
+      loadingProvider = true;
+      generation++;
+      running = 0;
+      entries.clear();
+      needsActivation = false;
       try {
         const config = await chrome.runtime.sendMessage({ type: 'translation-status' });
         if (id !== refresh) return;
         provider = ['custom', 'google', 'gemini', 'anthropic'].includes(config?.provider) ? config.provider : 'local';
-        generation++;
-        running = 0;
-        entries.clear();
-        needsActivation = false;
-        notify();
-      } catch { /* Keep local translation when the extension is unavailable. */ }
+        providerRevision = config?.revision;
+      } catch {
+        if (id === refresh) provider = 'local';
+      } finally {
+        if (id === refresh) { loadingProvider = false; notify(); }
+      }
     };
     loadProvider();
     chrome.storage?.onChanged.addListener((changes, area) => {
@@ -106,7 +115,9 @@
       const protectedText = protectNames(entry.original);
       let translated;
       if (online) {
-        const result = await chrome.runtime.sendMessage({ type: 'translate-bio', text: protectedText.text });
+        const result = await chrome.runtime.sendMessage({ type: 'translate-bio', text: protectedText.text, revision: providerRevision });
+        if (currentGeneration !== generation) return;
+        if (result?.code === 'cancelled') { loadProvider(); return; }
         if (result?.error) {
           const error = new Error('API translation failed');
           error.userMessage = String(result.error).slice(0, 200);

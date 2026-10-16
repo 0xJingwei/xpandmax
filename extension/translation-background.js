@@ -12,15 +12,18 @@
     timeout: '接口请求超时，请检查服务商状态',
     response: '接口返回格式异常，或译文为空、过长',
     network: '连接失败，请检查接口地址、网络及服务商状态',
-    busy: '翻译请求较多，请稍后重试',
     cancelled: '翻译设置已更改，请使用新设置重试'
   };
   const fail = code => { throw new Error(code); };
   const active = new Set();
+  const queue = [];
+  const instance = crypto.randomUUID();
   let generation = 0;
+  const revision = () => `${instance}:${generation}`;
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes.translationConfig) return;
     generation++;
+    for (const job of queue.splice(0)) job.reject(new Error('cancelled'));
     for (const controller of active) controller.abort();
     active.clear();
   });
@@ -57,12 +60,26 @@
     if (!await chrome.permissions.contains({ origins: [`${new URL(config.provider === 'google' ? googleEndpoint : config.endpoint).origin}/*`] })) fail('permission');
   }
 
-  async function translate(text) {
+  async function translate(text, expectedRevision) {
     if (typeof text !== 'string' || !text.trim() || text.length > 6000) fail('response');
-    if (active.size >= 2) fail('busy');
-    const requestGeneration = generation;
-    const controller = new AbortController();
-    active.add(controller);
+    if (expectedRevision !== revision()) fail('cancelled');
+    return new Promise((resolve, reject) => {
+      queue.push({ text, generation, resolve, reject });
+      pump();
+    });
+  }
+
+  // All tabs share these slots; waiting jobs do not consume their request timeout.
+  function pump() {
+    while (active.size < 2 && queue.length) {
+      const job = queue.shift();
+      const controller = new AbortController();
+      active.add(controller);
+      performTranslation(job.text, job.generation, controller).then(job.resolve, job.reject);
+    }
+  }
+
+  async function performTranslation(text, requestGeneration, controller) {
     const timer = setTimeout(() => controller.abort(), 20000);
     try {
       const config = validate(await getConfig());
@@ -148,7 +165,11 @@
       if (requestGeneration !== generation) fail('cancelled');
       if (controller.signal.aborted) fail('timeout');
       throw error;
-    } finally { clearTimeout(timer); active.delete(controller); }
+    } finally {
+      clearTimeout(timer);
+      active.delete(controller);
+      pump();
+    }
   }
 
   chrome.runtime.onMessage.addListener((message, sender, reply) => {
@@ -159,8 +180,9 @@
       && !(xPage && ['translation-status', 'translate-bio'].includes(message.type))) return;
     (async () => {
       if (message.type === 'translation-status') {
+        const currentRevision = revision();
         const { provider } = await getConfig();
-        return { provider: online(provider) ? provider : 'local' };
+        return { provider: online(provider) ? provider : 'local', revision: currentRevision };
       }
       if (message.type === 'translation-config') return getConfig();
       if (message.type === 'translation-save') {
@@ -169,8 +191,10 @@
         await chrome.storage.local.set({ translationConfig: config });
         return { saved: true };
       }
-      return translate(message.type === 'translation-test' ? 'I build useful tools.' : message.text);
-    })().then(reply, error => reply({ error: messages[error.message] || messages.network }));
+      return translate(message.type === 'translation-test' ? 'I build useful tools.' : message.text,
+        message.type === 'translation-test' ? revision() : message.revision);
+    })().then(reply, error => reply({ error: messages[error.message] || messages.network,
+      ...(error.message === 'cancelled' ? { code: 'cancelled' } : {}) }));
     return true;
   });
 })();
